@@ -1,0 +1,193 @@
+Product Requirement Document (PRD)
+Smart Social Bookmark Hub & Knowledge Manager
+BookmarkAI Hub — v1.1 (Revised)
+Zero Infrastructure Cost Stack — Instagram Reels-First Architecture
+Field
+Value
+Project Name
+BookmarkAI Hub
+Target User
+Single User (Personal)
+Total Cost Target
+$0 / Rp0 (Zero Price)
+Version
+v1.1 — Revised from v1.0 (July 2026)
+Revision Date
+31 Juli 2026
+Revision Reason
+Penyesuaian arsitektur audio extraction (mayoritas source = Reels Instagram) + penetapan dev environment
+
+0. CHANGELOG — v1.0 → v1.1
+Revisi ini dipicu oleh dua keputusan penting hasil diskusi:
+Mayoritas source konten user adalah Reels Instagram, yang bersifat audio-heavy (voice-over/tutorial verbal). Menunda fitur transkripsi audio ke v2 akan menghilangkan value inti aplikasi. Maka fitur audio transcription tetap masuk v1, namun arsitekturnya dipindah keluar dari Vercel Serverless Function.
+Rencana awal menggunakan browser automation (Selenium/Playwright) untuk scraping situs downloader pihak ketiga (fastvideosave.net) dibatalkan — digantikan oleh yt-dlp yang dijalankan sebagai worker terpisah di GitHub Actions.
+
+Area
+v1.0 (Sebelumnya)
+v1.1 (Revisi)
+Audio Extraction
+Rencana: browser automation ke situs downloader pihak ketiga
+yt-dlp dijalankan di GitHub Actions worker (legal, stabil, native untuk IG/TikTok/YouTube)
+Eksekusi Proses Audio
+Diasumsikan di dalam Vercel Serverless Function
+Dipindah ke job terpisah (GitHub Actions), dipicu via webhook dari Vercel
+Flow Capture
+Single-pass (sinkron)
+Two-phase: metadata cepat (sync) + audio & transcript (async, dengan status update ke user)
+Dev Environment
+Belum ditentukan
+Ditetapkan: Google Antigravity sebagai IDE utama; Google AI Studio untuk eksperimen prompt saja
+
+1. EXECUTIVE SUMMARY & OBJECTIVES
+BookmarkAI Hub adalah sistem manajemen ide dan referensi dari media sosial (Instagram, TikTok, X, YouTube) yang terintegrasi penuh secara otomatis. Sistem ini menyelesaikan masalah information overload dan hilangnya konteks saat menyimpan postingan media sosial, tanpa bergantung pada langganan berbayar ($0 Cost Commitment).
+Karena mayoritas konten yang disimpan user berasal dari Reels Instagram — format yang konteksnya sering tersimpan di narasi audio, bukan caption — kemampuan transkripsi audio dianggap sebagai fitur inti (core), bukan fitur tambahan, dan tetap masuk dalam scope v1.
+
+Tujuan Utama Sistem:
+Capture Cepat via Mobile: Input link & pesan opsional langsung dari aplikasi Telegram melalui fitur Share.
+Automated AI Enrichment: Ekstraksi metadata, pembentukan ringkasan otomatis, serta penentuan kategori/tag hibrida (AI Auto-tagging + Manual Override).
+Speech-to-Text Gratis (Core v1): Transkripsi audio postingan video (TikTok/Reels/Shorts), diekstrak via worker eksternal menggunakan yt-dlp, ditranskripsi menggunakan Groq Whisper API ($0 tier).
+Advance Management Dashboard: Dashboard web berbasis Next.js untuk filter, pencarian teks, pencarian makna (semantic search), dan pengeditan data secara terpusat.
+2. SYSTEM ARCHITECTURE & TECH STACK ($0 COST ASSURANCE)
+Seluruh komponen sistem dipilih secara teliti untuk memastikan tidak ada risiko tagihan kartu kredit mendadak, menggunakan batas penggunaan gratisan (free tier) yang sangat aman untuk skala penggunaan personal.
+Komponen
+Teknologi Pilihan
+Free Tier Capacity
+Fungsi Utama
+Input Client
+Telegram Bot API
+100% Gratis, Unbounded
+Antarmuka kirim link, instruksi cepat, dan konfirmasi inline.
+Management Web
+Next.js (App Router) + Vercel
+100 GB Bandwidth/bln
+Dashboard web personal untuk filter, edit, dan manajemen tingkat lanjut.
+Backend Webhook
+Vercel Serverless Functions
+100.000 req/bln
+Eksekusi logika bot, ekstraksi metadata OpenGraph, trigger worker, dan panggilan API AI.
+Audio Extraction Worker (BARU)
+GitHub Actions + yt-dlp + ffmpeg
+2.000 menit/bln (private repo) / Unlimited (public repo)
+Download audio dari Reels/TikTok/Shorts secara legal, di luar batas durasi Vercel.
+Database
+Supabase (PostgreSQL + pgvector)
+500 MB DB / 1 GB Storage
+Penyimpanan relasional link, tags, summary, transcript, dan pencarian vektor.
+Main AI Engine
+Groq API (Llama-3.3-70b-versatile)
+30 RPM / 14.400 RPD
+Analisis teks postingan, ekstraksi JSON, dan kategorisasi.
+Audio Transcription
+Groq API (Whisper-large-v3)
+High Speed / Free Tier
+Transkripsi file audio hasil ekstraksi worker menjadi teks.
+Fallback AI Engine
+Google Gemini 1.5 Flash API
+15 RPM / 1M Token/day
+Cadangan otomatis jika Groq mengalami rate limit.
+
+Perubahan Kunci: Baris "Audio Extraction Worker" adalah komponen baru di v1.1. Proses download audio Reels TIDAK lagi diasumsikan berjalan di dalam Vercel Serverless Function — dipindah ke GitHub Actions karena keterbatasan durasi eksekusi (~10 detik) dan ukuran deployment (~50MB) pada tier gratis Vercel, yang tidak cukup untuk menjalankan yt-dlp + ffmpeg dengan andal.
+
+3. USER WORKFLOW & FEATURES SPECIFICATION
+3.1. Flow 1: Capture & Enrichment via Telegram Bot (Revisi: Two-Phase)
+Flow ini direvisi menjadi dua fase — sinkron (cepat) dan asinkron (audio processing) — agar user tidak menunggu lama di chat sementara tetap mendapatkan hasil analisis lengkap termasuk transkrip audio.
+
+Fase A — Sinkron (Instan)
+Share Link + Optional Note: User mengirimkan link Reels/TikTok/postingan medsos ke Telegram Bot, dengan pesan manual opsional (misal: https://instagram.com/reel/xyz pelajari arsitektur ini).
+Metadata Extraction: Vercel Webhook langsung mengekstrak OpenGraph metadata (judul, deskripsi publik, thumbnail).
+Bot membalas status: "🔄 Metadata tersimpan, memproses audio..." — memberi tahu user bahwa proses lanjutan sedang berjalan.
+
+Fase B — Asinkron (Audio Extraction & Transcription)
+Vercel memicu GitHub Actions workflow melalui repository_dispatch, mengirim payload berisi URL Reels/TikTok.
+GitHub Actions runner menjalankan yt-dlp untuk mengekstrak audio dari link tersebut, dikonversi ke format audio ringan (mis. mp3/ogg) via ffmpeg.
+Audio dikirim ke Groq Whisper API untuk mendapatkan transkripsi teks penuh.
+Workflow mengirim hasil transkrip kembali ke endpoint Vercel (atau langsung update ke Supabase).
+Groq AI menganalisis gabungan dari: OpenGraph Text + Audio Transcript + Note Manual User, menghasilkan DRAFT JSON: Judul Ringkas, Kategori, Tag, Ringkasan Poin, dan Alasan Simpan.
+Bot mengedit pesan sebelumnya dengan hasil analisis lengkap dan tombol interaktif konfirmasi.
+
+  Simpan Langsung  
+Confirmation Inline Keyboard yang ditampilkan bot: [✅ Simpan Langsung]  [📝 Edit Manual]  [❌ Batal]
+Persistence: Setelah user klik ✅ atau memberikan instruksi edit, data resmi tersimpan ke Supabase Database (termasuk kolom audio_transcript yang kini terisi).
+
+Trade-off yang perlu diketahui: total waktu tunggu dari kirim link sampai hasil analisis lengkap kini berkisar 30–90 detik (tergantung cold-start GitHub Actions runner + durasi download/transkripsi), bukan instan seperti asumsi v1.0. UX pesan status bertahap (Fase A → Fase B) dirancang untuk mengelola ekspektasi ini.
+
+3.2. Flow 2: Advance Management via Web Dashboard
+Authentication: Protected route sederhana (Single User Auth / Passcode / Supabase Auth).
+Interactive Data Table & Gallery View: Menampilkan daftar link tersimpan dalam bentuk kartu referensi atau tabel interaktif.
+Full-Text & Semantic Search: Fitur cari kata kunci yang didukung oleh PostgreSQL Full-Text Search atau Supabase Vector Search.
+Manual Categorization Management: Fitur untuk membuat, mengedit, menghapus, atau menggabungkan kategori/tag secara fleksibel.
+Export Data: Kemampuan mengekspor seluruh data ke file CSV/JSON sewaktu-waktu sebagai backup.
+4. DATABASE SCHEMA (SUPABASE POSTGRESQL)
+Schema tidak berubah secara struktural dari v1.0 — kolom audio_transcript yang sebelumnya disiapkan sebagai reserved field kini aktif digunakan sejak v1.1.
+
+-- Enable Vector Extension for Semantic Search
+CREATE EXTENSION IF NOT EXISTS vector;
+ 
+-- Table: Categories
+CREATE TABLE categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+ 
+-- Table: Bookmarks
+CREATE TABLE bookmarks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT,
+    user_note TEXT,
+    audio_transcript TEXT, -- AKTIF di v1.1 (worker GitHub Actions)
+    processing_status VARCHAR(20) DEFAULT 'pending', -- BARU: pending|processing|done|failed
+    category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+    tags TEXT[],
+    source_platform VARCHAR(30),
+    ai_raw_response JSONB,
+    embedding VECTOR(1536), -- Perlu dipastikan konsisten dgn model embedding yg dipakai
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+ 
+-- Index for Fast Searching
+CREATE INDEX idx_bookmarks_url ON bookmarks(url);
+CREATE INDEX idx_bookmarks_tags ON bookmarks USING GIN(tags);
+
+Tambahan v1.1: kolom processing_status ditambahkan agar dashboard bisa menampilkan status "sedang diproses" untuk bookmark yang audio-nya belum selesai ditranskripsi oleh worker — penting karena sekarang prosesnya asinkron.
+
+5. ERROR HANDLING, FALLBACK STRATEGY & $0 LIMIT PROTECTION
+Skenario Masalah
+Metode Deteksi
+Solusi Fallback ($0 Guaranteed)
+Groq API Rate Limit (429)
+Catch Error HTTP Status 429
+Otomatis dialihkan ke Gemini 1.5 Flash API. User tidak merasakan gangguan.
+Link Medsos Terkunci/Private
+OpenGraph Scraper gagal / 403 Forbidden
+Bot mengirim pesan: "Link privat. Kirimkan pesan teks/screenshot ringkas untuk dianalisis AI."
+yt-dlp Gagal Ekstrak Audio (BARU)
+Exit code error / format tidak dikenali pada GitHub Actions runner
+Sistem melewati proses STT dan menggunakan analisis berbasis teks caption + manual note user. processing_status diset 'failed'.
+GitHub Actions Job Timeout/Gagal Trigger (BARU)
+Webhook tidak menerima callback dalam batas waktu (mis. 5 menit)
+Bot mengirim notifikasi: "Audio masih diproses / gagal, ringkasan sementara berbasis caption." Bookmark tetap tersimpan tanpa transcript.
+Supabase Capacity Warning (>80%)
+Notifikasi Dashboard Supabase
+Sediakan tombol "Archive Old Data" di Dashboard untuk export & hapus data lama ke file lokal.
+6. DEVELOPMENT ENVIRONMENT
+Bagian baru: menetapkan tooling pengembangan yang digunakan mengingat kompleksitas proyek ini melibatkan banyak layanan yang saling terhubung (Telegram Bot, Vercel, Supabase, GitHub Actions worker, Groq/Gemini API).
+
+Tool
+Peran dalam Proyek
+Kapan Digunakan
+Google Antigravity
+IDE utama pengembangan. Agent-first IDE yang mengelola multi-file, multi-service project (bot logic, dashboard, worker script) secara terkoordinasi.
+Sepanjang siklus development — dari setup awal repo, integrasi Supabase/Vercel/GitHub Actions, hingga testing & deployment.
+Google AI Studio
+Sandbox eksperimen prompt. Digunakan untuk validasi cepat bagaimana Groq/Gemini merespons prompt kategorisasi & summarization sebelum ditanam ke kode produksi.
+Fase eksperimen prompt AI saja — bukan untuk membangun aplikasi utama.
+
+Alasan: proyek ini melebihi skala prototipe single-file yang menjadi kekuatan utama AI Studio — dengan banyak service saling terhubung, dibutuhkan environment yang bisa mengelola arsitektur dan kode multi-file secara konsisten. AI Studio tetap berguna sebagai tempat validasi cepat sebelum implementasi penuh di Antigravity.
+7. FUTURE SCOPE (v2 — Post-MVP)
+Evaluasi keandalan yt-dlp terhadap perubahan proteksi Instagram (mis. kebutuhan cookie/session login untuk akses tertentu).
+Notifikasi push/dashboard real-time untuk status pemrosesan audio (processing_status), bukan hanya update chat Telegram.
+Dukungan retry otomatis jika GitHub Actions job gagal karena rate-limit internal Groq Whisper.
+Evaluasi migrasi worker ke Fly.io/Oracle Cloud Free Tier jika kuota menit GitHub Actions (repo private) mulai mendekati limit bulanan.
