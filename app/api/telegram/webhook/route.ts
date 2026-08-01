@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
 
       if (data.startsWith('save:')) {
         const bookmarkId = data.split(':')[1];
-        await answerCallbackQuery(cb.id, '✅ Bookmark berhasil dikonfirmasi dan disimpan!');
+        await answerCallbackQuery(cb.id, '✅ Bookmark resmi disimpan!');
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `✅ *Bookmark Resmi Tersimpan!*\n\nData telah diperbarui di Supabase Database dan dapat diakses & diedit kapan saja melalui Dashboard Web.`,
+          text: `✅ *Bookmark Resmi Tersimpan & Difinalkan!*\n\nData telah disimpan di Supabase Database dan dapat diakses kapan saja melalui Dashboard Web.`,
         });
       } else if (data.startsWith('delete:')) {
         const bookmarkId = data.split(':')[1];
@@ -40,34 +40,55 @@ export async function POST(req: NextRequest) {
           message_id: messageId,
           text: `🗑️ *Bookmark Dibatalkan*\n\nData telah dihapus dari database.`,
         });
-      } else if (data.startsWith('back_draft:')) {
+      } else if (data.startsWith('preview:')) {
         const bookmarkId = data.split(':')[1];
         const { data: b } = await supabase.from('bookmarks').select('*, categories(name)').eq('id', bookmarkId).maybeSingle();
-        await answerCallbackQuery(cb.id, '⬅️ Kembali ke menu draf.');
-
-        const catName = b?.categories?.name || 'Umum';
-        const tagsStr = (b?.tags || []).map((t: string) => `#${t}`).join(' ');
-
+        if (b) {
+          const catName = b.categories?.name || 'Umum';
+          const tagsFormatted = (b.tags || []).map((t: string) => `#${t}`).join(' ');
+          const previewText = `📌 *Judul*: ${b.title}\n📁 *Kategori*: *${catName}*\n🏷️ *Tags*: ${tagsFormatted || 'Tidak ada'}\n\n💡 *Ringkasan*:\n${b.summary || 'Belum ada'}\n\n💬 *Catatan*: ${b.user_note || 'Tidak ada'}`;
+          
+          await editTelegramMessage({
+            chat_id: chatId,
+            message_id: messageId,
+            text: previewText,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '✏️ Edit Metadata', callback_data: `edit_menu:${bookmarkId}` },
+                  { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmarkId}` }
+                ],
+                [
+                  { text: '✅ Selesai & Simpan', callback_data: `save:${bookmarkId}` },
+                  { text: '❌ Hapus', callback_data: `delete:${bookmarkId}` }
+                ]
+              ]
+            }
+          });
+        }
+      } else if (data.startsWith('edit_menu:')) {
+        const bookmarkId = data.split(':')[1];
+        await answerCallbackQuery(cb.id, '✏️ Pilih bidang data yang ingin di-edit:');
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `🔄 *Metadata Draf Bookmark*
-
-📌 *Judul*: ${b?.title || 'Bookmark'}
-📁 *Kategori*: ${catName}
-🏷️ *Tags*: ${tagsStr || '#bookmark'}
-
-💡 *Ringkasan*:
-${b?.summary || 'Tidak ada ringkasan'}`,
+          text: `✏️ *Menu Edit Metadata Bookmark*\n\nPilih salah satu bidang data di bawah ini untuk Anda ubah:`,
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmarkId}` },
-                { text: '✏️ Tambah Catatan', callback_data: `add_note:${bookmarkId}` }
+                { text: '📌 1. Judul', callback_data: `prompt:title:${bookmarkId}` },
+                { text: '📁 2. Kategori', callback_data: `cat_menu:${bookmarkId}` }
               ],
               [
-                { text: '✅ Selesai & Simpan', callback_data: `save:${bookmarkId}` },
-                { text: '❌ Hapus', callback_data: `delete:${bookmarkId}` }
+                { text: '🏷️ 3. Tags', callback_data: `prompt:tags:${bookmarkId}` },
+                { text: '💡 4. Ringkasan', callback_data: `prompt:summary:${bookmarkId}` }
+              ],
+              [
+                { text: '💬 5. Catatan Pribadi', callback_data: `prompt:note:${bookmarkId}` }
+              ],
+              [
+                { text: '⬅️ Kembali', callback_data: `preview:${bookmarkId}` },
+                { text: '✅ Selesai & Submit', callback_data: `save:${bookmarkId}` }
               ]
             ]
           }
@@ -78,7 +99,7 @@ ${b?.summary || 'Tidak ada ringkasan'}`,
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `📁 *Pilih Kategori Bookmark Manual*\n\nSilakan pilih salah satu kategori di bawah ini (Pilihan tidak akan langsung menyimpan bookmark):`,
+          text: `📁 *Pilih Kategori Bookmark Manual*\n\nPilih kategori yang sesuai (pilihan ini tidak akan langsung meng-submit):`,
           reply_markup: {
             inline_keyboard: [
               [
@@ -94,7 +115,8 @@ ${b?.summary || 'Tidak ada ringkasan'}`,
                 { text: '🏠 Gaya Hidup', callback_data: `set_cat:${bookmarkId}:Gaya Hidup` }
               ],
               [
-                { text: '⬅️ Kembali ke Menu Draf', callback_data: `back_draft:${bookmarkId}` }
+                { text: '⬅️ Kembali ke Edit Menu', callback_data: `edit_menu:${bookmarkId}` },
+                { text: '✅ Selesai & Submit', callback_data: `save:${bookmarkId}` }
               ]
             ]
           }
@@ -115,31 +137,43 @@ ${b?.summary || 'Tidak ada ringkasan'}`,
 
         await supabase.from('bookmarks').update({ category_id: categoryId }).eq('id', bookmarkId);
 
-        await answerCallbackQuery(cb.id, `📁 Kategori terpilih: ${catName}`);
+        await answerCallbackQuery(cb.id, `✅ Kategori diubah ke: ${catName}`);
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `📁 *Kategori Dipilih*: *${catName}*\n\nKategori telah diperbarui dalam draf. Anda dapat memilih kategori lain atau menekan *Selesai & Simpan* jika sudah fix.`,
+          text: `✅ *Kategori Diperbarui*: *${catName}*\n\nAnda dapat meng-edit bidang data lain atau menekan tombol Kembali tanpa langsung meng-submit.`,
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '📁 Pilih Kategori Lain', callback_data: `cat_menu:${bookmarkId}` },
-                { text: '⬅️ Kembali ke Draf', callback_data: `back_draft:${bookmarkId}` }
+                { text: '✏️ Edit Bidang Lain', callback_data: `edit_menu:${bookmarkId}` },
+                { text: '📁 Ubah Kategori Lagi', callback_data: `cat_menu:${bookmarkId}` }
               ],
               [
-                { text: '✅ Selesai & Simpan', callback_data: `save:${bookmarkId}` }
+                { text: '⬅️ Kembali', callback_data: `preview:${bookmarkId}` },
+                { text: '✅ Selesai & Submit', callback_data: `save:${bookmarkId}` }
               ]
             ]
           }
         });
-      } else if (data.startsWith('add_note:')) {
-        await answerCallbackQuery(cb.id, '💡 Kirim pesan baru beserta catatan Anda.');
+      } else if (data.startsWith('prompt:')) {
+        const parts = data.split(':');
+        const field = parts[1];
+        const bookmarkId = parts[2];
+
+        const fieldLabels: Record<string, string> = {
+          title: '📌 Judul',
+          tags: '🏷️ Tags',
+          summary: '💡 Ringkasan',
+          note: '💬 Catatan Pribadi'
+        };
+
+        const label = fieldLabels[field] || field;
+
+        await answerCallbackQuery(cb.id, `✏️ Kirim balasan teks untuk ${label}`);
         await sendTelegramMessage({
           chat_id: chatId,
-          text: `💡 *Petunjuk Menambah Catatan Manual:*\n\nAnda dapat mengirimkan pesan link yang disertai teks catatan Anda di Telegram, contoh:\n\n\`https://instagram.com/p/xyz Ini catatan: membahas tentang React Server Components\`\n\nAI akan memprioritaskan catatan Anda sebagai konteks utama ringkasan!`,
+          text: `✏️ *Petunjuk Edit ${label}:*\n\nSilakan kirim pesan balasan teks berisi ${label} baru yang Anda inginkan, dengan menyertakan kode tag ini di akhir pesan:\n\n\`#set_${field}_${bookmarkId}\`\n\n*Contoh Pesan:* \nPesan baru Anda di sini #set_${field}_${bookmarkId}`,
         });
-      } else if (data.startsWith('info:')) {
-        await answerCallbackQuery(cb.id, 'ℹ️ Buka Dashboard Web untuk pengeditan lengkap.');
       }
       return NextResponse.json({ ok: true });
     }
@@ -219,7 +253,52 @@ ${aiResult.summary}`;
 
     const text: string = (message.text || '').trim();
 
-    // 2B. Extract URL from text using Regex
+    // 2B. Handle Field Edit Reply Commands (#set_title_<id>, #set_tags_<id>, #set_summary_<id>, #set_note_<id>)
+    const setTagMatch = text.match(/#set_(title|tags|summary|note)_([a-f0-9-]+)/i);
+    if (setTagMatch) {
+      const field = setTagMatch[1].toLowerCase();
+      const bookmarkId = setTagMatch[2];
+      const cleanValue = text.replace(setTagMatch[0], '').trim();
+
+      if (cleanValue) {
+        let updateData: any = {};
+        if (field === 'title') updateData.title = cleanValue;
+        if (field === 'summary') updateData.summary = cleanValue;
+        if (field === 'note') updateData.user_note = cleanValue;
+        if (field === 'tags') {
+          updateData.tags = cleanValue.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+        }
+
+        await supabase.from('bookmarks').update(updateData).eq('id', bookmarkId);
+
+        const fieldLabels: Record<string, string> = {
+          title: '📌 Judul',
+          tags: '🏷️ Tags',
+          summary: '💡 Ringkasan',
+          note: '💬 Catatan'
+        };
+
+        await sendTelegramMessage({
+          chat_id: chatId,
+          text: `✅ *${fieldLabels[field] || field} Berhasil Diperbarui!*\n\n*Nilai Baru*:\n${cleanValue}\n\nAnda dapat meng-edit bidang data lain atau menekan tombol Selesai & Submit saat siap.`,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✏️ Edit Bidang Lain', callback_data: `edit_menu:${bookmarkId}` },
+                { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmarkId}` }
+              ],
+              [
+                { text: '⬅️ Kembali ke Preview', callback_data: `preview:${bookmarkId}` },
+                { text: '✅ Selesai & Submit', callback_data: `save:${bookmarkId}` }
+              ]
+            ]
+          }
+        });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // 2C. Extract URL from text using Regex
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
     const urlMatch = text.match(urlRegex);
 
@@ -313,11 +392,11 @@ ${initialAiResult.summary}
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark.id}` },
-            { text: '✏️ Tambah Catatan', callback_data: `add_note:${bookmark.id}` }
+            { text: '✏️ Edit Metadata (Judul/Tags/dll)', callback_data: `edit_menu:${bookmark.id}` },
+            { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark.id}` }
           ],
           [
-            { text: '✅ Simpan Bookmark', callback_data: `save:${bookmark.id}` },
+            { text: '✅ Selesai & Submit', callback_data: `save:${bookmark.id}` },
             { text: '❌ Hapus', callback_data: `delete:${bookmark.id}` }
           ]
         ]
