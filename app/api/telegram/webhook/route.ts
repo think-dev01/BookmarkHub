@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
         await answerCallbackQuery(cb.id, `✏️ Kirim balasan teks untuk ${label}`);
         await sendTelegramMessage({
           chat_id: chatId,
-          text: `✏️ *Petunjuk Edit ${label}:*\n\nSilakan kirim pesan balasan teks berisi ${label} baru yang Anda inginkan, dengan menyertakan kode tag ini di akhir pesan:\n\n\`#set_${field}_${bookmarkId}\`\n\n*Contoh Pesan:* \nPesan baru Anda di sini #set_${field}_${bookmarkId}`,
+          text: `✏️ *Petunjuk Edit ${label}:*\n\nTekan tombol **Balas (Reply)** pada pesan ini lalu ketikkan ${label} baru Anda.\n\nAtau tempelkan kode ini di akhir pesan Anda:\n\`#set_${field}_${bookmarkId}\`\n\n*Contoh Pesan:*\nJudul baru Anda di sini \`#set_${field}_${bookmarkId}\``,
         });
       }
       return NextResponse.json({ ok: true });
@@ -240,7 +240,11 @@ ${aiResult.summary}`;
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark.id}` },
+                  { text: '✏️ Edit Metadata', callback_data: `edit_menu:${bookmark.id}` },
+                  { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark.id}` }
+                ],
+                [
+                  { text: '✅ Selesai & Submit', callback_data: `save:${bookmark.id}` },
                   { text: '❌ Hapus', callback_data: `delete:${bookmark.id}` }
                 ]
               ]
@@ -252,13 +256,17 @@ ${aiResult.summary}`;
     }
 
     const text: string = (message.text || '').trim();
+    const replyContextText = message.reply_to_message?.text || '';
+    const combinedText = `${text} ${replyContextText}`;
 
-    // 2B. Handle Field Edit Reply Commands (#set_title_<id>, #set_tags_<id>, #set_summary_<id>, #set_note_<id>)
-    const setTagMatch = text.match(/#set_(title|tags|summary|note)_([a-f0-9-]+)/i);
+    // 2B. Flexible Field Edit Reply Commands (#set_title_<id>, #settitle<id>, set_title_<id>, etc.)
+    const setTagMatch = combinedText.match(/#?set_?(title|tags|summary|note)_?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i) ||
+                        combinedText.match(/#?set_?(title|tags|summary|note)_?([a-f0-9-]+)/i);
+
     if (setTagMatch) {
       const field = setTagMatch[1].toLowerCase();
       const bookmarkId = setTagMatch[2];
-      const cleanValue = text.replace(setTagMatch[0], '').trim();
+      const cleanValue = text.replace(/#?set_?(title|tags|summary|note)_?[a-f0-9-]+/gi, '').trim();
 
       if (cleanValue) {
         let updateData: any = {};
