@@ -77,14 +77,33 @@ export async function answerCallbackQuery(callback_query_id: string, text?: stri
   }
 }
 
+export async function getTelegramFileUrl(file_id: string): Promise<string | null> {
+  if (!botToken) return null;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${file_id}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.result?.file_path) {
+        return `https://api.telegram.org/file/bot${botToken}/${data.result.file_path}`;
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error('Telegram getFile error:', err);
+    return null;
+  }
+}
+
 export function getFallbackUsageGuideMessage(): string {
   return `⚠️ *Format Tidak Dikenali*
 
-📌 *BookmarkAI Hub* dirancang khusus untuk menyimpan dan menganalisis tautan media sosial (*Instagram Reels, TikTok, YouTube Shorts, X/Twitter*).
+📌 *BookmarkAI Hub* dirancang khusus untuk menyimpan dan menganalisis referensi media sosial (*Instagram Reels, TikTok, YouTube Shorts, X/Twitter, Infografis*).
 
-💡 *Cara Penggunaan:*
-Kirimkan link postingan media sosial ke bot ini. Anda juga bisa menambahkan catatan opsional di belakang link.
+💡 *2 Cara Penggunaan:*
+1️⃣ **Kirim Foto / Screenshot**: Kirimkan foto screenshot postingan/infografis langsung ke bot ini! *(Gemini Vision AI akan secara otomatis memindai seluruh teks di gambar & merangkumnya)*.
 
-*Contoh:*
-\`https://www.instagram.com/reel/Cxxxxxx/ pelajari strategi marketing ini\``;
+2️⃣ **Kirim Link Postingan**: Kirimkan link media sosial. Anda juga bisa menyertakan catatan singkat di belakang link.
+
+*Contoh Link:*
+\`https://www.instagram.com/p/Cxxxxxx/ 10 jenis web app\``;
 }

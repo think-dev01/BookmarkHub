@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeOpenGraph } from '@/lib/opengraph';
 import { supabase } from '@/lib/supabase';
-import { sendTelegramMessage, editTelegramMessage, answerCallbackQuery, getFallbackUsageGuideMessage } from '@/lib/telegram';
+import { sendTelegramMessage, editTelegramMessage, answerCallbackQuery, getFallbackUsageGuideMessage, getTelegramFileUrl } from '@/lib/telegram';
 import { generateAIEnrichment, generateTextEmbedding } from '@/lib/ai';
 import { triggerAudioExtractionWorker } from '@/lib/github';
 
@@ -110,14 +110,81 @@ export async function POST(req: NextRequest) {
     }
 
     const message = update.message;
-    if (!message || !message.text) {
+    if (!message) {
       return NextResponse.json({ ok: true });
     }
 
     const chatId = message.chat.id;
-    const text: string = message.text.trim();
 
-    // 2. Extract URL from text using Regex
+    // 2A. Direct Photo / Screenshot Upload Processing (Gemini Vision OCR)
+    if (message.photo && Array.isArray(message.photo) && message.photo.length > 0) {
+      const photo = message.photo[message.photo.length - 1];
+      const photoUrl = await getTelegramFileUrl(photo.file_id);
+      const userNote = (message.caption || '').trim();
+
+      if (photoUrl) {
+        const aiResult = await generateAIEnrichment({
+          ogTitle: userNote || 'Screenshot Infografis',
+          ogDescription: userNote,
+          ogImage: photoUrl,
+          userNote: userNote,
+          platform: 'other',
+        });
+
+        let categoryId: string | null = null;
+        if (aiResult.category) {
+          const { data: existingCat } = await supabase.from('categories').select('id').eq('name', aiResult.category).maybeSingle();
+          if (existingCat) {
+            categoryId = existingCat.id;
+          } else {
+            const { data: newCat } = await supabase.from('categories').insert({ name: aiResult.category }).select('id').single();
+            if (newCat) categoryId = newCat.id;
+          }
+        }
+
+        const { data: bookmark } = await supabase.from('bookmarks').insert({
+          url: photoUrl,
+          title: aiResult.title,
+          summary: aiResult.summary,
+          thumbnail_url: photoUrl,
+          user_note: userNote || null,
+          processing_status: 'done',
+          category_id: categoryId,
+          tags: aiResult.tags,
+          source_platform: 'other',
+          ai_raw_response: aiResult.raw_response,
+        }).select('id').single();
+
+        const replyText = `🖼️ *Teks Foto Berhasil Dipindai (Gemini Vision AI)*
+
+📌 *Judul*: ${aiResult.title}
+📁 *Kategori*: ${aiResult.category}
+🏷️ *Tags*: ${aiResult.tags.map(t => `#${t}`).join(' ')}
+
+💡 *Hasil Ringkasan Teks Gambar*:
+${aiResult.summary}`;
+
+        if (bookmark) {
+          await sendTelegramMessage({
+            chat_id: chatId,
+            text: replyText,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark.id}` },
+                  { text: '❌ Hapus', callback_data: `delete:${bookmark.id}` }
+                ]
+              ]
+            }
+          });
+        }
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    const text: string = (message.text || '').trim();
+
+    // 2B. Extract URL from text using Regex
     const urlRegex = /(https?:\/\/[^\s]+)/gi;
     const urlMatch = text.match(urlRegex);
 
