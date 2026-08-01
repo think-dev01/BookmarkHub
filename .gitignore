@@ -2,6 +2,7 @@
 /node_modules
 /.next/
 /out/
+/.agents/
 
 # Environment Variables - SECURITY CRITICAL
 .env
@@ -19,3 +20,5 @@ yarn-error.log*
 # OS Files
 .DS_Store
 Thumbs.db
+
+note.md

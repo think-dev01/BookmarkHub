@@ -13,16 +13,57 @@ export interface AIEnrichmentResult {
   tags: string[];
   summary: string;
   save_reason: string;
+  ocr_text?: string;
   raw_response?: any;
+}
+
+export async function extractTextFromImage(imageUrl: string): Promise<string | null> {
+  if (!geminiApiKey || !imageUrl) return null;
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const imageResp = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      }
+    });
+    if (!imageResp.ok) return null;
+    const arrayBuffer = await imageResp.arrayBuffer();
+    const mimeType = (imageResp.headers.get('content-type') || 'image/jpeg').split(';')[0];
+    
+    const prompt = "Ekstrak dan bacakan seluruh teks, infografis, angka, atau materi utama yang terdapat dalam gambar ini secara akurat. Jika berupa gambar ilustrasi tanpa teks, deskripsikan pesan utamanya secara ringkas.";
+    
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: Buffer.from(arrayBuffer).toString('base64'),
+          mimeType: mimeType
+        }
+      }
+    ]);
+
+    const text = result.response.text().trim();
+    return text || null;
+  } catch (err) {
+    console.warn('Gemini Vision OCR extraction failed:', err);
+    return null;
+  }
 }
 
 export async function generateAIEnrichment(params: {
   ogTitle: string;
   ogDescription: string;
+  ogImage?: string;
   userNote?: string;
   audioTranscript?: string;
   platform: string;
 }): Promise<AIEnrichmentResult> {
+  // If ogImage is present, attempt Gemini Vision OCR
+  let ocrText: string | null = null;
+  if (params.ogImage) {
+    ocrText = await extractTextFromImage(params.ogImage);
+  }
+
   const prompt = `Anda adalah asisten AI pengelola pengetahuan personal (BookmarkAI Hub).
 Analisis konten berikut dan hasilkan respon berformat JSON murni tanpa markdown formatting:
 
@@ -32,12 +73,13 @@ Input Data:
 - OpenGraph Description: ${params.ogDescription}
 - User Note: ${params.userNote || 'Tidak ada'}
 - Audio Transcript (Speech-To-Text): ${params.audioTranscript || 'Tidak ada'}
+- Gambar / Infografis OCR Content: ${ocrText || 'Tidak ada / Gambar tidak terbaca'}
 
 Instruksi Tambahan:
 - Buat judul ringkas dan informatif dalam Bahasa Indonesia (maksimal 10 kata).
 - Pilih 1 Kategori utama yang relevan (misal: "Teknologi & Coding", "Desain & UI/UX", "Produktivitas", "Bisnis & Marketing", "Tutorial", "Gaya Hidup", "Edukasi").
 - Tentukan 3-5 tag kata kunci sederhana (tanpa simbol #).
-- Buat ringkasan poin-poin penting (3-4 poin bullet) berdasarkan gabungan konteks.
+- Buat ringkasan poin-poin penting (3-4 poin bullet) berdasarkan gabungan konteks (termasuk isi teks gambar/infografis jika ada).
 - Jelaskan alasan mengapa bookmark ini bernilai untuk disimpan.
 
 Format JSON Output Yang Diharapkan:

@@ -7,6 +7,13 @@ import { triggerAudioExtractionWorker } from '@/lib/github';
 
 export async function POST(req: NextRequest) {
   try {
+    // Verify Telegram Webhook Secret Token if configured
+    const secretHeader = req.headers.get('x-telegram-bot-api-secret-token');
+    const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (expectedSecret && secretHeader !== expectedSecret) {
+      return NextResponse.json({ error: 'Unauthorized request' }, { status: 401 });
+    }
+
     const update = await req.json();
 
     // 1. Handle Inline Keyboard Button Callbacks
@@ -66,10 +73,11 @@ export async function POST(req: NextRequest) {
     // 3. Phase A (Sync) - Instant Metadata Scraping & AI Draft
     const og = await scrapeOpenGraph(rawUrl);
 
-    // Generate initial AI draft based on OpenGraph & User Note
+    // Generate initial AI draft based on OpenGraph, User Note, and Gemini Vision OCR
     const initialAiResult = await generateAIEnrichment({
       ogTitle: og.title,
       ogDescription: og.description,
+      ogImage: og.thumbnail || undefined,
       userNote: userNote,
       platform: og.platform,
     });
