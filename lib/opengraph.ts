@@ -38,20 +38,40 @@ export async function scrapeOpenGraph(url: string): Promise<ScrapedMetadata> {
       if (embedRes.ok) {
         const embedHtml = await embedRes.text();
 
-        // Extract HD Embedded Image
-        const imgMatch = embedHtml.match(/<img[^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
-                         embedHtml.match(/<img[^>]*src=["']([^"']+)["'][^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["']/i);
-        if (imgMatch && imgMatch[1]) {
-          thumbnail = imgMatch[1].replace(/&amp;/g, '&');
+        // Extract HD Embedded Image & Alt Text
+        const imgAltMatch = embedHtml.match(/<img[^>]*alt=["']([^"']+)["'][^>]*src=["']([^"']+)["']/i) ||
+                            embedHtml.match(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']+)["']/i);
+
+        if (imgAltMatch) {
+          const isAltFirst = embedHtml.indexOf('alt=') < embedHtml.indexOf('src=');
+          const rawAlt = isAltFirst ? imgAltMatch[1] : imgAltMatch[2];
+          const rawSrc = isAltFirst ? imgAltMatch[2] : imgAltMatch[1];
+
+          if (rawSrc && (rawSrc.includes('cdninstagram') || rawSrc.includes('fbcdn.net') || rawSrc.includes('http'))) {
+            thumbnail = rawSrc.replace(/&amp;/g, '&');
+          }
+
+          if (rawAlt && !description) {
+            description = rawAlt.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+          }
         }
 
-        // Extract Caption Text
-        const captionMatch = embedHtml.match(/<div[^>]*class=["']Caption["'][^>]*>([\s\S]*?)<\/div>/i);
-        if (captionMatch && captionMatch[1]) {
-          // Strip HTML tags and clean up caption
-          const rawCaption = captionMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (rawCaption) {
-            description = rawCaption;
+        if (!thumbnail) {
+          const imgMatch = embedHtml.match(/<img[^>]*src=["']([^"']*(?:cdninstagram\.com|fbcdn\.net)[^"']+)["']/i) ||
+                           embedHtml.match(/<img[^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]*src=["']([^"']+)["']/i);
+          if (imgMatch && imgMatch[1]) {
+            thumbnail = imgMatch[1].replace(/&amp;/g, '&');
+          }
+        }
+
+        // Extract Caption Text if not already set from alt
+        if (!description) {
+          const captionMatch = embedHtml.match(/<div[^>]*class=["']Caption["'][^>]*>([\s\S]*?)<\/div>/i);
+          if (captionMatch && captionMatch[1]) {
+            const rawCaption = captionMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            if (rawCaption) {
+              description = rawCaption;
+            }
           }
         }
 
@@ -61,7 +81,7 @@ export async function scrapeOpenGraph(url: string): Promise<ScrapedMetadata> {
         const username = usernameMatch ? usernameMatch[1].trim() : '';
 
         if (description) {
-          title = username ? `@${username}: ${description.slice(0, 60)}...` : description.slice(0, 60);
+          title = username ? `@${username}: ${description.slice(0, 65)}...` : description.slice(0, 65);
         }
       }
     } catch (igErr) {
