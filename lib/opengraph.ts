@@ -38,24 +38,29 @@ export async function scrapeOpenGraph(url: string): Promise<ScrapedMetadata> {
       if (embedRes.ok) {
         const embedHtml = await embedRes.text();
 
-        // Extract HD Embedded Image & Alt Text
-        const imgAltMatch = embedHtml.match(/<img[^>]*alt=["']([^"']+)["'][^>]*src=["']([^"']+)["']/i) ||
-                            embedHtml.match(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']+)["']/i);
+        // Extract ALL HD Embedded Images & Alt OCR Texts across all Carousel Slides
+        const imgMatches = Array.from(embedHtml.matchAll(/<img[^>]*alt=["']([^"']+)["'][^>]*src=["']([^"']+)["']|<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']+)["']/gi));
+        const collectedAlts: string[] = [];
 
-        if (imgAltMatch) {
-          const isAltFirst = embedHtml.indexOf('alt=') < embedHtml.indexOf('src=');
-          const rawAlt = isAltFirst ? imgAltMatch[1] : imgAltMatch[2];
-          const rawSrc = isAltFirst ? imgAltMatch[2] : imgAltMatch[1];
+        for (const match of imgMatches) {
+          const isAltFirst = match[0].indexOf('alt=') < match[0].indexOf('src=');
+          const rawAlt = isAltFirst ? match[1] : match[4];
+          const rawSrc = isAltFirst ? match[2] : match[3];
 
-          if (rawSrc && (rawSrc.includes('cdninstagram') || rawSrc.includes('fbcdn.net') || rawSrc.includes('http'))) {
+          // Pick the first HD image thumbnail
+          if (!thumbnail && rawSrc && (rawSrc.includes('cdninstagram') || rawSrc.includes('fbcdn.net') || rawSrc.includes('http'))) {
             thumbnail = rawSrc.replace(/&amp;/g, '&');
           }
 
-          if (rawAlt && !description) {
-            description = rawAlt.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+          if (rawAlt) {
+            const cleanAlt = rawAlt.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+            if (cleanAlt && !cleanAlt.toLowerCase().includes('profile picture') && !collectedAlts.includes(cleanAlt)) {
+              collectedAlts.push(cleanAlt);
+            }
           }
         }
 
+        // Also check standalone images if thumbnail still missing
         if (!thumbnail) {
           const imgMatch = embedHtml.match(/<img[^>]*src=["']([^"']*(?:cdninstagram\.com|fbcdn\.net)[^"']+)["']/i) ||
                            embedHtml.match(/<img[^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]*src=["']([^"']+)["']/i);
@@ -64,16 +69,18 @@ export async function scrapeOpenGraph(url: string): Promise<ScrapedMetadata> {
           }
         }
 
-        // Extract Caption Text if not already set from alt
-        if (!description) {
-          const captionMatch = embedHtml.match(/<div[^>]*class=["']Caption["'][^>]*>([\s\S]*?)<\/div>/i);
-          if (captionMatch && captionMatch[1]) {
-            const rawCaption = captionMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-            if (rawCaption) {
-              description = rawCaption;
-            }
-          }
+        // Combine Caption Text + All Slide OCR Texts
+        let captionText = '';
+        const captionMatch = embedHtml.match(/<div[^>]*class=["']Caption["'][^>]*>([\s\S]*?)<\/div>/i);
+        if (captionMatch && captionMatch[1]) {
+          captionText = captionMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         }
+
+        const fullContextParts: string[] = [];
+        if (captionText) fullContextParts.push(`[Caption Post]:\n${captionText}`);
+        if (collectedAlts.length > 0) fullContextParts.push(`[Teks OCR dari Slide Gambar/Infografis]:\n${collectedAlts.join('\n\n')}`);
+
+        description = fullContextParts.join('\n\n');
 
         // Extract Username
         const usernameMatch = embedHtml.match(/class=["']UsernameText["'][^>]*>([^<]+)<\/span>/i) ||
