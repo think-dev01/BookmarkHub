@@ -1,6 +1,6 @@
 const githubPat = process.env.GITHUB_PAT || '';
-let rawOwner = process.env.GITHUB_REPO_OWNER || 'think-dev01';
-let rawRepo = process.env.GITHUB_REPO_NAME || 'BookmarkHub';
+let rawOwner = (process.env.GITHUB_REPO_OWNER || '').trim() || 'think-dev01';
+let rawRepo = (process.env.GITHUB_REPO_NAME || '').trim() || 'BookmarkHub';
 
 // Sanitize repoOwner if full URL was pasted in environment variables
 if (rawOwner.includes('github.com/')) {
