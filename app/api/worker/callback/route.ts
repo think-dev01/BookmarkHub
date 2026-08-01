@@ -5,7 +5,7 @@ import { generateAIEnrichment, generateTextEmbedding } from '@/lib/ai';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { bookmark_id, audio_transcript, status } = body;
+    const { bookmark_id, caption, thumbnail_url, audio_transcript, status } = body;
 
     if (!bookmark_id) {
       return NextResponse.json({ error: 'Missing bookmark_id' }, { status: 400 });
@@ -22,41 +22,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Bookmark not found' }, { status: 404 });
     }
 
-    if (status === 'failed' || !audio_transcript) {
-      // Mark as failed/partially completed without transcript
+    const effectiveText = caption || audio_transcript || '';
+
+    if (!effectiveText && status === 'failed') {
       await supabase
         .from('bookmarks')
         .update({ processing_status: 'failed' })
         .eq('id', bookmark_id);
 
-      return NextResponse.json({ message: 'Marked as failed/caption-only' });
+      return NextResponse.json({ message: 'No content extracted' });
     }
 
-    // Re-run AI enrichment with full STT transcript
+    // Re-run AI enrichment with full Instagram caption fetched by yt-dlp & audio transcript
     const fullEnrichment = await generateAIEnrichment({
       ogTitle: bookmark.title,
-      ogDescription: bookmark.summary || '',
+      ogDescription: caption || bookmark.summary || '',
       userNote: bookmark.user_note || undefined,
-      audioTranscript: audio_transcript,
+      audioTranscript: audio_transcript || undefined,
       platform: bookmark.source_platform || 'other',
     });
 
     // Generate vector embedding for semantic search
-    const textToEmbed = `${fullEnrichment.title} ${fullEnrichment.summary} ${audio_transcript}`;
+    const textToEmbed = `${fullEnrichment.title} ${fullEnrichment.summary} ${audio_transcript || ''} ${caption || ''}`;
     const embedding = await generateTextEmbedding(textToEmbed);
 
     // Update database record to 'done'
+    const updatePayload: any = {
+      title: fullEnrichment.title,
+      summary: fullEnrichment.summary,
+      audio_transcript: audio_transcript || null,
+      tags: fullEnrichment.tags,
+      ai_raw_response: fullEnrichment.raw_response,
+      processing_status: 'done',
+      embedding: embedding,
+    };
+
+    if (thumbnail_url && !bookmark.thumbnail_url) {
+      updatePayload.thumbnail_url = thumbnail_url;
+    }
+
     const { error: updateErr } = await supabase
       .from('bookmarks')
-      .update({
-        title: fullEnrichment.title,
-        summary: fullEnrichment.summary,
-        audio_transcript: audio_transcript,
-        tags: fullEnrichment.tags,
-        ai_raw_response: fullEnrichment.raw_response,
-        processing_status: 'done',
-        embedding: embedding,
-      })
+      .update(updatePayload)
       .eq('id', bookmark_id);
 
     if (updateErr) {
