@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     url TEXT NOT NULL,
     title TEXT NOT NULL,
     summary TEXT,
+    thumbnail_url TEXT, -- OpenGraph / Social Media image thumbnail
     user_note TEXT,
     audio_transcript TEXT, -- Speech-To-Text from Groq Whisper API
     processing_status VARCHAR(20) DEFAULT 'pending', -- 'pending' | 'processing' | 'done' | 'failed'
@@ -27,6 +28,8 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     embedding VECTOR(768), -- Gemini text-embedding-004 vector length (768)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE bookmarks ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
 
 -- 4. Indexes for High Performance
 CREATE INDEX IF NOT EXISTS idx_bookmarks_url ON bookmarks(url);

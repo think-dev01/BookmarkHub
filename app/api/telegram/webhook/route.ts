@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
         url: rawUrl,
         title: initialAiResult.title,
         summary: initialAiResult.summary,
+        thumbnail_url: og.thumbnail || null,
         user_note: userNote || null,
         processing_status: 'pending',
         category_id: categoryId,

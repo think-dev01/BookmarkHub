@@ -53,7 +53,23 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onViewTran
   };
 
   return (
-    <div className="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 group">
+    <div className="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 group overflow-hidden">
+      {/* Thumbnail Preview Banner */}
+      {bookmark.thumbnail_url && (
+        <div className="relative w-full h-44 -mt-1 -mx-1 rounded-xl overflow-hidden bg-slate-900 border border-white/10">
+          <img
+            src={bookmark.thumbnail_url}
+            alt={bookmark.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              const container = (e.target as HTMLElement).parentElement;
+              if (container) container.style.display = 'none';
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
+        </div>
+      )}
+
       {/* Header Info */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">

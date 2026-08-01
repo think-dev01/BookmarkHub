@@ -10,6 +10,7 @@ export interface Bookmark {
   url: string;
   title: string;
   summary: string | null;
+  thumbnail_url?: string | null;
   user_note: string | null;
   audio_transcript: string | null;
   processing_status: 'pending' | 'processing' | 'done' | 'failed';
