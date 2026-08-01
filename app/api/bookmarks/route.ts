@@ -76,63 +76,20 @@ export async function DELETE(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, title, summary, user_note, category_id, category_name, tags, thumbnail_url } = body;
+    const { id, title, summary, user_note, category_id, tags, thumbnail_url } = body;
 
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    let finalCategoryId = category_id;
-
-    // Handle new category creation if category_name is provided
-    if (!finalCategoryId && category_name) {
-      const { data: existingCat } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('name', category_name.trim())
-        .maybeSingle();
-
-      if (existingCat) {
-        finalCategoryId = existingCat.id;
-      } else {
-        const { data: newCat } = await supabase
-          .from('categories')
-          .insert({ name: category_name.trim() })
-          .select('id')
-          .single();
-        if (newCat) finalCategoryId = newCat.id;
-      }
-    }
-
-    // Regenerate vector embedding for updated search
-    const textToEmbed = `${title || ''} ${summary || ''} ${user_note || ''}`;
-    const embedding = await generateTextEmbedding(textToEmbed);
-
-    const updatePayload: any = {
-      title,
-      summary,
-      user_note,
-      category_id: finalCategoryId,
-      tags,
-      thumbnail_url,
-    };
-    if (embedding) {
-      updatePayload.embedding = embedding;
-    }
-
     const { data, error } = await supabase
       .from('bookmarks')
-      .update(updatePayload)
+      .update({ title, summary, user_note, category_id, tags, thumbnail_url })
       .eq('id', id)
-      .select('*, categories(name)')
+      .select()
       .single();
 
     if (error) throw error;
 
-    const formatted = {
-      ...data,
-      category_name: data.categories?.name || 'Umum',
-    };
-
-    return NextResponse.json({ bookmark: formatted });
+    return NextResponse.json({ bookmark: data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

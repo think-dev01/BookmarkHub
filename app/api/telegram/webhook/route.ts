@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `✅ *Bookmark Resmi Tersimpan!*\n\nData telah diperbarui di Supabase Database dan dapat diakses melalui Dashboard Web.`,
+          text: `✅ *Bookmark Resmi Tersimpan!*\n\nData telah diperbarui di Supabase Database dan dapat diakses & diedit kapan saja melalui Dashboard Web.`,
         });
       } else if (data.startsWith('delete:')) {
         const bookmarkId = data.split(':')[1];
@@ -39,6 +39,69 @@ export async function POST(req: NextRequest) {
           chat_id: chatId,
           message_id: messageId,
           text: `🗑️ *Bookmark Dibatalkan*\n\nData telah dihapus dari database.`,
+        });
+      } else if (data.startsWith('cat_menu:')) {
+        const bookmarkId = data.split(':')[1];
+        await answerCallbackQuery(cb.id, '📁 Pilih Kategori yang sesuai:');
+        await editTelegramMessage({
+          chat_id: chatId,
+          message_id: messageId,
+          text: `📁 *Pilih Kategori Bookmark Manual*\n\nSilakan pilih salah satu kategori utama di bawah ini:`,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '💻 Teknologi & Coding', callback_data: `set_cat:${bookmarkId}:Teknologi & Coding` },
+                { text: '🎨 Desain & UI/UX', callback_data: `set_cat:${bookmarkId}:Desain & UI/UX` }
+              ],
+              [
+                { text: '📈 Bisnis & Marketing', callback_data: `set_cat:${bookmarkId}:Bisnis & Marketing` },
+                { text: '⚡ Produktivitas', callback_data: `set_cat:${bookmarkId}:Produktivitas` }
+              ],
+              [
+                { text: '📚 Edukasi & Tutorial', callback_data: `set_cat:${bookmarkId}:Edukasi & Tutorial` },
+                { text: '🏠 Gaya Hidup', callback_data: `set_cat:${bookmarkId}:Gaya Hidup` }
+              ],
+              [
+                { text: '⬅️ Selesai / Kembali', callback_data: `save:${bookmarkId}` }
+              ]
+            ]
+          }
+        });
+      } else if (data.startsWith('set_cat:')) {
+        const parts = data.split(':');
+        const bookmarkId = parts[1];
+        const catName = parts.slice(2).join(':');
+
+        let categoryId: string | null = null;
+        const { data: existingCat } = await supabase.from('categories').select('id').eq('name', catName).maybeSingle();
+        if (existingCat) {
+          categoryId = existingCat.id;
+        } else {
+          const { data: newCat } = await supabase.from('categories').insert({ name: catName }).select('id').single();
+          if (newCat) categoryId = newCat.id;
+        }
+
+        await supabase.from('bookmarks').update({ category_id: categoryId }).eq('id', bookmarkId);
+
+        await answerCallbackQuery(cb.id, `✅ Kategori diubah ke: ${catName}`);
+        await editTelegramMessage({
+          chat_id: chatId,
+          message_id: messageId,
+          text: `✅ *Kategori Berhasil Diperbarui!*\n\n📁 *Kategori Baru*: *${catName}*\n\nCatatan: Anda juga dapat mengubah judul, ringkasan, dan foto thumbnail secara bebas di Dashboard Web.`,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '📁 Ubah Kategori Lagi', callback_data: `cat_menu:${bookmarkId}` },
+                { text: '✅ Selesai', callback_data: `save:${bookmarkId}` }
+              ]
+            ]
+          }
+        });
+      } else if (data.startsWith('add_note:')) {
+        await answerCallbackQuery(cb.id, '💡 Kirim pesan baru beserta catatan Anda.');
+        await sendTelegramMessage({
+          chat_id: chatId,
+          text: `💡 *Petunjuk Menambah Catatan Manual:*\n\nAnda dapat mengirimkan pesan link yang disertai teks catatan Anda di Telegram, contoh:\n\n\`https://instagram.com/p/xyz Ini catatan: membahas tentang React Server Components\`\n\nAI akan memprioritaskan catatan Anda sebagai konteks utama ringkasan!`,
         });
       } else if (data.startsWith('info:')) {
         await answerCallbackQuery(cb.id, 'ℹ️ Buka Dashboard Web untuk pengeditan lengkap.');
@@ -140,9 +203,7 @@ export async function POST(req: NextRequest) {
 💡 *Ringkasan Awal (Caption)*:
 ${initialAiResult.summary}
 
-⚙️ _Audio Reels/TikTok sedang diekstrak secara asinkron via GitHub Actions. Hasil transkrip penuh akan diperbarui otomatis dalam 30-60 detik..._
-
-✏️ *Manual Edit*: Jika metadata di atas kurang deskriptif, Anda dapat mengedit Judul, Kategori, Ringkasan, & Foto Thumbnail secara langsung melalui Web Dashboard.`;
+⚙️ _Audio Reels/TikTok sedang diekstrak secara asinkron via GitHub Actions. Hasil transkrip penuh akan diperbarui otomatis dalam 30-60 detik..._`;
 
     const telegramReply = await sendTelegramMessage({
       chat_id: chatId,
@@ -150,8 +211,12 @@ ${initialAiResult.summary}
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Simpan DRAFT', callback_data: `save:${bookmark.id}` },
-            { text: '❌ Batal', callback_data: `delete:${bookmark.id}` }
+            { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark.id}` },
+            { text: '✏️ Tambah Catatan', callback_data: `add_note:${bookmark.id}` }
+          ],
+          [
+            { text: '✅ Simpan Bookmark', callback_data: `save:${bookmark.id}` },
+            { text: '❌ Hapus', callback_data: `delete:${bookmark.id}` }
           ]
         ]
       }

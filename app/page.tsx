@@ -8,7 +8,7 @@ import { Navbar } from '@/components/Navbar';
 import { BookmarkCard } from '@/components/BookmarkCard';
 import { TranscriptModal } from '@/components/TranscriptModal';
 import { ExportModal } from '@/components/ExportModal';
-import { EditModal } from '@/components/EditModal';
+import { EditBookmarkModal } from '@/components/EditBookmarkModal';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [searchMode, setSearchMode] = useState<'all' | 'semantic'>('all');
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [selectedTranscript, setSelectedTranscript] = useState<Bookmark | null>(null);
-  const [selectedEditBookmark, setSelectedEditBookmark] = useState<Bookmark | null>(null);
+  const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                 key={bookmark.id}
                 bookmark={bookmark}
                 onViewTranscript={(b) => setSelectedTranscript(b)}
-                onEdit={(b) => setSelectedEditBookmark(b)}
+                onEdit={(b) => setEditingBookmark(b)}
                 onDelete={handleDelete}
               />
             ))}
@@ -222,11 +222,11 @@ export default function DashboardPage() {
       />
 
       {/* Manual Edit Bookmark Modal */}
-      <EditModal
-        bookmark={selectedEditBookmark}
-        onClose={() => setSelectedEditBookmark(null)}
+      <EditBookmarkModal
+        bookmark={editingBookmark}
+        onClose={() => setEditingBookmark(null)}
         onSaveSuccess={(updated) => {
-          setBookmarks(prev => prev.map(b => b.id === updated.id ? updated : b));
+          setBookmarks(prev => prev.map(b => b.id === updated.id ? { ...b, ...updated } : b));
         }}
       />
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ExternalLink, Mic, Trash2, Tag, Calendar, CheckCircle2, Clock, AlertCircle, Edit3 } from 'lucide-react';
+import { ExternalLink, Mic, Trash2, Tag, Calendar, CheckCircle2, Clock, AlertCircle, Pencil } from 'lucide-react';
 import { Bookmark } from '@/lib/supabase';
 
 interface BookmarkCardProps {
@@ -143,9 +143,9 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onViewTran
           <button
             onClick={() => onEdit(bookmark)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
-            title="Edit Bookmark"
+            title="Edit Bookmark Metadata"
           >
-            <Edit3 className="w-4 h-4" />
+            <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(bookmark.id)}
