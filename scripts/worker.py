@@ -7,7 +7,7 @@ import subprocess
 import requests
 
 def get_ytdlp_metadata(url):
-    """Extracts metadata (description/caption, title, thumbnail) using yt-dlp --dump-json."""
+    """Extracts metadata (description/caption, title, thumbnail, media type) using yt-dlp --dump-json."""
     cmd = ["yt-dlp", "--dump-json", "--no-warnings", url]
     print(f"Extracting metadata via yt-dlp: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -16,10 +16,27 @@ def get_ytdlp_metadata(url):
             data = json.loads(result.stdout)
             caption = data.get("description") or data.get("title") or ""
             thumbnail = data.get("thumbnail") or ""
+            
+            is_video = False
+            vcodec = data.get("vcodec")
+            acodec = data.get("acodec")
+            ext = (data.get("ext") or "").lower()
+            
+            if (vcodec and vcodec != "none") or (acodec and acodec != "none"):
+                is_video = True
+            elif ext in ["mp4", "webm", "m4a", "mp3", "mov"]:
+                is_video = True
+            elif data.get("formats"):
+                for fmt in data.get("formats"):
+                    if fmt.get("vcodec") != "none" or fmt.get("acodec") != "none":
+                        is_video = True
+                        break
+
             return {
                 "caption": caption,
                 "thumbnail": thumbnail,
-                "title": data.get("title") or ""
+                "title": data.get("title") or "",
+                "is_video": is_video
             }
         except Exception as e:
             print(f"Error parsing yt-dlp JSON: {e}")
@@ -98,6 +115,7 @@ def main():
     meta = get_ytdlp_metadata(url)
     caption = meta.get("caption") if meta else None
     thumbnail = meta.get("thumbnail") if meta else None
+    is_video = meta.get("is_video", False) if meta else False
     
     if caption:
         print(f"[WORKER STEP 1 SUCCESS] Extracted Caption ({len(caption)} chars): {caption[:150]}...")
@@ -107,18 +125,24 @@ def main():
     if thumbnail:
         print(f"[WORKER STEP 1 SUCCESS] Extracted Thumbnail URL: {thumbnail[:80]}...")
         
-    # Step 2: Try Downloading Audio MP3 if available
-    print("[WORKER STEP 2] Attempting audio MP3 extraction...")
-    audio_file = f"audio_{args.bookmark_id}.mp3"
-    audio_success = download_audio_ytdlp(args.url, audio_file)
     transcript = None
-    
-    if audio_success and os.path.exists(audio_file):
-        print("[WORKER STEP 3] Transcribing audio via Groq Whisper API...")
-        transcript = transcribe_audio_groq(audio_file, args.groq_key)
-        if transcript:
-            print(f"[WORKER STEP 3 SUCCESS] Transcribed Text ({len(transcript)} chars): {transcript[:150]}...")
-            
+
+    # Step 2: Download Audio MP3 ONLY if content is detected as Video/Reel!
+    if is_video:
+        print("[WORKER STEP 2] Content is detected as Video/Reel. Attempting audio MP3 extraction...")
+        audio_file = f"audio_{args.bookmark_id}.mp3"
+        audio_success = download_audio_ytdlp(url, audio_file)
+        
+        if audio_success and os.path.exists(audio_file):
+            print("[WORKER STEP 3] Transcribing audio via Groq Whisper API...")
+            transcript = transcribe_audio_groq(audio_file, args.groq_key)
+            if transcript:
+                print(f"[WORKER STEP 3 SUCCESS] Transcribed Text ({len(transcript)} chars): {transcript[:150]}...")
+            if os.path.exists(audio_file):
+                os.remove(audio_file)
+    else:
+        print("[WORKER STEP 2] Content detected as Photo/Carousel/Text post (no video audio stream). Skipping audio download.")
+
     status = "done" if (caption or transcript or thumbnail) else "failed"
 
     # Send enriched callback payload to Vercel API
@@ -138,10 +162,6 @@ def main():
         print(f"[WORKER STEP 4 SUCCESS] Vercel Callback Status: {res.status_code} | Body: {res.text}")
     except Exception as e:
         print(f"[WORKER STEP 4 ERROR] Callback failed: {e}")
-        
-    # Cleanup temp audio file
-    if os.path.exists(audio_file):
-        os.remove(audio_file)
 
     print("=" * 60)
     print("[WORKER FINISHED] Job execution complete.")
