@@ -82,15 +82,20 @@ def main():
     
     args = parser.parse_args()
     
+    url = (args.url or '').strip()
+    if not url:
+        print("[WORKER ERROR] Empty URL provided to worker! Please pass a valid social media URL.")
+        sys.exit(1)
+
     print("=" * 60)
-    print(f"[WORKER START] Processing URL: {args.url}")
+    print(f"[WORKER START] Processing URL: {url}")
     print(f"[WORKER START] Bookmark ID: {args.bookmark_id}")
     print(f"[WORKER START] Chat ID: {args.chat_id} | Message ID: {args.message_id}")
     print("=" * 60)
     
     # Step 1: Extract Full Caption & Thumbnail via yt-dlp
     print("[WORKER STEP 1] Fetching yt-dlp metadata JSON...")
-    meta = get_ytdlp_metadata(args.url)
+    meta = get_ytdlp_metadata(url)
     caption = meta.get("caption") if meta else None
     thumbnail = meta.get("thumbnail") if meta else None
     

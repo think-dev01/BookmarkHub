@@ -1,0 +1,45 @@
+﻿2026-08-01T11:47:37.3463597Z ##[group]Run python -m pip install --upgrade pip
+2026-08-01T11:47:37.3464036Z [36;1mpython -m pip install --upgrade pip[0m
+2026-08-01T11:47:37.3464372Z [36;1mpip install yt-dlp requests[0m
+2026-08-01T11:47:37.3511506Z shell: /usr/bin/bash -e {0}
+2026-08-01T11:47:37.3511759Z env:
+2026-08-01T11:47:37.3512023Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:37.3512847Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-08-01T11:47:37.3513315Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:37.3513701Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:37.3514097Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:37.3514505Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-08-01T11:47:37.3514835Z ##[endgroup]
+2026-08-01T11:47:37.9995654Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (26.1.2)
+2026-08-01T11:47:38.0892430Z Collecting pip
+2026-08-01T11:47:38.1420146Z   Downloading pip-26.2-py3-none-any.whl.metadata (4.6 kB)
+2026-08-01T11:47:38.1501065Z Downloading pip-26.2-py3-none-any.whl (1.8 MB)
+2026-08-01T11:47:38.1916627Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 90.8 MB/s  0:00:00
+2026-08-01T11:47:38.2221061Z Installing collected packages: pip
+2026-08-01T11:47:38.2222825Z   Attempting uninstall: pip
+2026-08-01T11:47:38.2238958Z     Found existing installation: pip 26.1.2
+2026-08-01T11:47:38.2721870Z     Uninstalling pip-26.1.2:
+2026-08-01T11:47:38.2784896Z       Successfully uninstalled pip-26.1.2
+2026-08-01T11:47:39.0700185Z Successfully installed pip-26.2
+2026-08-01T11:47:39.5757143Z Collecting yt-dlp
+2026-08-01T11:47:39.6230363Z   Downloading yt_dlp-2026.7.4-py3-none-any.whl.metadata (183 kB)
+2026-08-01T11:47:39.6833661Z Collecting requests
+2026-08-01T11:47:39.6875163Z   Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+2026-08-01T11:47:39.7808767Z Collecting charset_normalizer<4,>=2 (from requests)
+2026-08-01T11:47:39.7856253Z   Downloading charset_normalizer-3.4.9-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (41 kB)
+2026-08-01T11:47:39.8014985Z Collecting idna<4,>=2.5 (from requests)
+2026-08-01T11:47:39.8054789Z   Downloading idna-3.18-py3-none-any.whl.metadata (6.1 kB)
+2026-08-01T11:47:39.8249511Z Collecting urllib3<3,>=1.26 (from requests)
+2026-08-01T11:47:39.8293755Z   Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+2026-08-01T11:47:39.8461003Z Collecting certifi>=2023.5.7 (from requests)
+2026-08-01T11:47:39.8500128Z   Downloading certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+2026-08-01T11:47:39.8581707Z Downloading yt_dlp-2026.7.4-py3-none-any.whl (3.2 MB)
+2026-08-01T11:47:39.8781680Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 188.8 MB/s  0:00:00
+2026-08-01T11:47:39.8823189Z Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+2026-08-01T11:47:39.8883310Z Downloading charset_normalizer-3.4.9-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (221 kB)
+2026-08-01T11:47:39.8943598Z Downloading idna-3.18-py3-none-any.whl (65 kB)
+2026-08-01T11:47:39.9001546Z Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+2026-08-01T11:47:39.9059176Z Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+2026-08-01T11:47:39.9733522Z Installing collected packages: yt-dlp, urllib3, idna, charset_normalizer, certifi, requests
+2026-08-01T11:47:41.8970350Z 
+2026-08-01T11:47:41.8981761Z Successfully installed certifi-2026.7.22 charset_normalizer-3.4.9 idna-3.18 requests-2.34.2 urllib3-2.7.0 yt-dlp-2026.7.4

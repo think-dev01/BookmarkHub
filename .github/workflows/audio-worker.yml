@@ -4,6 +4,16 @@ on:
   repository_dispatch:
     types: [process_audio]
   workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target Social Media URL'
+        required: false
+      bookmark_id:
+        description: 'Bookmark ID'
+        required: false
+      callback_url:
+        description: 'Vercel Callback URL'
+        required: false
 
 jobs:
   extract-and-transcribe:
@@ -31,11 +41,16 @@ jobs:
       - name: Run Audio Extraction Worker Script
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PAYLOAD_URL: ${{ github.event.client_payload.url || inputs.url }}
+          PAYLOAD_BOOKMARK_ID: ${{ github.event.client_payload.bookmark_id || inputs.bookmark_id }}
+          PAYLOAD_CALLBACK_URL: ${{ github.event.client_payload.callback_url || inputs.callback_url }}
+          PAYLOAD_CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          PAYLOAD_MESSAGE_ID: ${{ github.event.client_payload.message_id }}
         run: |
           python scripts/worker.py \
-            --url "${{ github.event.client_payload.url }}" \
-            --bookmark-id "${{ github.event.client_payload.bookmark_id }}" \
-            --callback-url "${{ github.event.client_payload.callback_url }}" \
-            --chat-id "${{ github.event.client_payload.chat_id }}" \
-            --message-id "${{ github.event.client_payload.message_id }}" \
+            --url "$PAYLOAD_URL" \
+            --bookmark-id "$PAYLOAD_BOOKMARK_ID" \
+            --callback-url "$PAYLOAD_CALLBACK_URL" \
+            --chat-id "$PAYLOAD_CHAT_ID" \
+            --message-id "$PAYLOAD_MESSAGE_ID" \
             --groq-key "${{ secrets.GROQ_API_KEY }}"

@@ -1,0 +1,21 @@
+﻿2026-08-01T11:47:41.9561352Z ##[group]Run python scripts/worker.py \
+2026-08-01T11:47:41.9561741Z [36;1mpython scripts/worker.py \[0m
+2026-08-01T11:47:41.9562021Z [36;1m  --url "" \[0m
+2026-08-01T11:47:41.9562546Z [36;1m  --bookmark-id "" \[0m
+2026-08-01T11:47:41.9562816Z [36;1m  --callback-url "" \[0m
+2026-08-01T11:47:41.9563698Z [36;1m  --groq-key "***"[0m
+2026-08-01T11:47:41.9608400Z shell: /usr/bin/bash -e {0}
+2026-08-01T11:47:41.9608651Z env:
+2026-08-01T11:47:41.9608919Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:41.9609385Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-08-01T11:47:41.9609819Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:41.9610195Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:41.9610601Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-08-01T11:47:41.9611008Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-08-01T11:47:41.9611529Z   GROQ_API_KEY: ***
+2026-08-01T11:47:41.9611781Z ##[endgroup]
+2026-08-01T11:47:42.7712063Z Executing yt-dlp command: yt-dlp -x --audio-format mp3 --audio-quality 5 -o audio_.mp3 
+2026-08-01T11:47:42.7713146Z yt-dlp error: ERROR: [generic] '' is not a valid URL
+2026-08-01T11:47:42.7713395Z 
+2026-08-01T11:47:42.7713501Z Sending callback to ...
+2026-08-01T11:47:42.7713915Z Callback failed: Invalid URL '': No scheme supplied. Perhaps you meant https://?
