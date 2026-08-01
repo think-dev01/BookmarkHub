@@ -11,6 +11,7 @@ export async function sendTelegramMessage(params: {
   parse_mode?: 'Markdown' | 'HTML';
   reply_markup?: {
     inline_keyboard?: InlineKeyboardButton[][];
+    force_reply?: boolean;
   };
 }) {
   if (!botToken) return null;
