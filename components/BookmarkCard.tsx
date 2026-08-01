@@ -1,16 +1,17 @@
 'use client';
 
 import React from 'react';
-import { ExternalLink, Mic, Trash2, Tag, Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { ExternalLink, Mic, Trash2, Tag, Calendar, CheckCircle2, Clock, AlertCircle, Edit3 } from 'lucide-react';
 import { Bookmark } from '@/lib/supabase';
 
 interface BookmarkCardProps {
   bookmark: Bookmark;
   onViewTranscript: (bookmark: Bookmark) => void;
+  onEdit: (bookmark: Bookmark) => void;
   onDelete: (id: string) => void;
 }
 
-export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onViewTranscript, onDelete }) => {
+export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onViewTranscript, onEdit, onDelete }) => {
   const getPlatformBadge = (platform: string | null) => {
     switch (platform) {
       case 'instagram':
@@ -138,13 +139,22 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onViewTran
           )}
         </div>
 
-        <button
-          onClick={() => onDelete(bookmark.id)}
-          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-          title="Hapus Bookmark"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onEdit(bookmark)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+            title="Edit Bookmark"
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onDelete(bookmark.id)}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            title="Hapus Bookmark"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

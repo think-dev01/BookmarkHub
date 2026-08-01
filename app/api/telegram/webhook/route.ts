@@ -140,7 +140,9 @@ export async function POST(req: NextRequest) {
 💡 *Ringkasan Awal (Caption)*:
 ${initialAiResult.summary}
 
-⚙️ _Audio Reels/TikTok sedang diekstrak secara asinkron via GitHub Actions. Hasil transkrip penuh akan diperbarui otomatis dalam 30-60 detik..._`;
+⚙️ _Audio Reels/TikTok sedang diekstrak secara asinkron via GitHub Actions. Hasil transkrip penuh akan diperbarui otomatis dalam 30-60 detik..._
+
+✏️ *Manual Edit*: Jika metadata di atas kurang deskriptif, Anda dapat mengedit Judul, Kategori, Ringkasan, & Foto Thumbnail secara langsung melalui Web Dashboard.`;
 
     const telegramReply = await sendTelegramMessage({
       chat_id: chatId,

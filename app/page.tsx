@@ -8,6 +8,7 @@ import { Navbar } from '@/components/Navbar';
 import { BookmarkCard } from '@/components/BookmarkCard';
 import { TranscriptModal } from '@/components/TranscriptModal';
 import { ExportModal } from '@/components/ExportModal';
+import { EditModal } from '@/components/EditModal';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const [searchMode, setSearchMode] = useState<'all' | 'semantic'>('all');
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [selectedTranscript, setSelectedTranscript] = useState<Bookmark | null>(null);
+  const [selectedEditBookmark, setSelectedEditBookmark] = useState<Bookmark | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
@@ -205,6 +207,7 @@ export default function DashboardPage() {
                 key={bookmark.id}
                 bookmark={bookmark}
                 onViewTranscript={(b) => setSelectedTranscript(b)}
+                onEdit={(b) => setSelectedEditBookmark(b)}
                 onDelete={handleDelete}
               />
             ))}
@@ -216,6 +219,15 @@ export default function DashboardPage() {
       <TranscriptModal
         bookmark={selectedTranscript}
         onClose={() => setSelectedTranscript(null)}
+      />
+
+      {/* Manual Edit Bookmark Modal */}
+      <EditModal
+        bookmark={selectedEditBookmark}
+        onClose={() => setSelectedEditBookmark(null)}
+        onSaveSuccess={(updated) => {
+          setBookmarks(prev => prev.map(b => b.id === updated.id ? updated : b));
+        }}
       />
 
       {/* Export CSV/JSON Modal */}
