@@ -40,13 +40,45 @@ export async function POST(req: NextRequest) {
           message_id: messageId,
           text: `🗑️ *Bookmark Dibatalkan*\n\nData telah dihapus dari database.`,
         });
-      } else if (data.startsWith('cat_menu:')) {
+      } else if (data.startsWith('back_draft:')) {
         const bookmarkId = data.split(':')[1];
-        await answerCallbackQuery(cb.id, '📁 Pilih Kategori yang sesuai:');
+        const { data: b } = await supabase.from('bookmarks').select('*, categories(name)').eq('id', bookmarkId).maybeSingle();
+        await answerCallbackQuery(cb.id, '⬅️ Kembali ke menu draf.');
+
+        const catName = b?.categories?.name || 'Umum';
+        const tagsStr = (b?.tags || []).map((t: string) => `#${t}`).join(' ');
+
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `📁 *Pilih Kategori Bookmark Manual*\n\nSilakan pilih salah satu kategori utama di bawah ini:`,
+          text: `🔄 *Metadata Draf Bookmark*
+
+📌 *Judul*: ${b?.title || 'Bookmark'}
+📁 *Kategori*: ${catName}
+🏷️ *Tags*: ${tagsStr || '#bookmark'}
+
+💡 *Ringkasan*:
+${b?.summary || 'Tidak ada ringkasan'}`,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmarkId}` },
+                { text: '✏️ Tambah Catatan', callback_data: `add_note:${bookmarkId}` }
+              ],
+              [
+                { text: '✅ Selesai & Simpan', callback_data: `save:${bookmarkId}` },
+                { text: '❌ Hapus', callback_data: `delete:${bookmarkId}` }
+              ]
+            ]
+          }
+        });
+      } else if (data.startsWith('cat_menu:')) {
+        const bookmarkId = data.split(':')[1];
+        await answerCallbackQuery(cb.id, '📁 Pilih Kategori:');
+        await editTelegramMessage({
+          chat_id: chatId,
+          message_id: messageId,
+          text: `📁 *Pilih Kategori Bookmark Manual*\n\nSilakan pilih salah satu kategori di bawah ini (Pilihan tidak akan langsung menyimpan bookmark):`,
           reply_markup: {
             inline_keyboard: [
               [
@@ -62,7 +94,7 @@ export async function POST(req: NextRequest) {
                 { text: '🏠 Gaya Hidup', callback_data: `set_cat:${bookmarkId}:Gaya Hidup` }
               ],
               [
-                { text: '⬅️ Selesai / Kembali', callback_data: `save:${bookmarkId}` }
+                { text: '⬅️ Kembali ke Menu Draf', callback_data: `back_draft:${bookmarkId}` }
               ]
             ]
           }
@@ -83,16 +115,19 @@ export async function POST(req: NextRequest) {
 
         await supabase.from('bookmarks').update({ category_id: categoryId }).eq('id', bookmarkId);
 
-        await answerCallbackQuery(cb.id, `✅ Kategori diubah ke: ${catName}`);
+        await answerCallbackQuery(cb.id, `📁 Kategori terpilih: ${catName}`);
         await editTelegramMessage({
           chat_id: chatId,
           message_id: messageId,
-          text: `✅ *Kategori Berhasil Diperbarui!*\n\n📁 *Kategori Baru*: *${catName}*\n\nCatatan: Anda juga dapat mengubah judul, ringkasan, dan foto thumbnail secara bebas di Dashboard Web.`,
+          text: `📁 *Kategori Dipilih*: *${catName}*\n\nKategori telah diperbarui dalam draf. Anda dapat memilih kategori lain atau menekan *Selesai & Simpan* jika sudah fix.`,
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '📁 Ubah Kategori Lagi', callback_data: `cat_menu:${bookmarkId}` },
-                { text: '✅ Selesai', callback_data: `save:${bookmarkId}` }
+                { text: '📁 Pilih Kategori Lain', callback_data: `cat_menu:${bookmarkId}` },
+                { text: '⬅️ Kembali ke Draf', callback_data: `back_draft:${bookmarkId}` }
+              ],
+              [
+                { text: '✅ Selesai & Simpan', callback_data: `save:${bookmarkId}` }
               ]
             ]
           }
