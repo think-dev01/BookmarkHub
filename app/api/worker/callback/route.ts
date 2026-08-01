@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { generateAIEnrichment, generateTextEmbedding } from '@/lib/ai';
+import { editTelegramMessage } from '@/lib/telegram';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { bookmark_id, caption, thumbnail_url, audio_transcript, status } = body;
+    const { bookmark_id, caption, thumbnail_url, audio_transcript, chat_id, message_id, status } = body;
 
     if (!bookmark_id) {
       return NextResponse.json({ error: 'Missing bookmark_id' }, { status: 400 });
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     // Fetch existing bookmark
     const { data: bookmark, error: fetchErr } = await supabase
       .from('bookmarks')
-      .select('*')
+      .select('*, categories(name)')
       .eq('id', bookmark_id)
       .single();
 
@@ -69,6 +70,32 @@ export async function POST(req: NextRequest) {
     if (updateErr) {
       console.error('Supabase update error on worker callback:', updateErr);
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+
+    // Live Edit Telegram Message on User's Screen when Phase B finishes!
+    if (chat_id && message_id) {
+      const categoryName = bookmark.categories?.name || fullEnrichment.category || 'Umum';
+      const tagsFormatted = (fullEnrichment.tags || []).map((t: string) => `#${t}`).join(' ');
+
+      const updatedTelegramText = `✨ *Metadata & AI Analysis Diperbarui (Worker Complete)*\n\n📌 *Judul*: ${fullEnrichment.title}\n📁 *Kategori*: *${categoryName}*\n🏷️ *Tags*: ${tagsFormatted}\n\n💡 *Hasil Ringkasan AI Penuh (Caption & Transkrip)*:\n${fullEnrichment.summary}\n\n💬 *Catatan*: ${bookmark.user_note || 'Tidak ada'}`;
+
+      await editTelegramMessage({
+        chat_id: chat_id,
+        message_id: message_id,
+        text: updatedTelegramText,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✏️ Edit Metadata', callback_data: `edit_menu:${bookmark_id}` },
+              { text: '📁 Ubah Kategori', callback_data: `cat_menu:${bookmark_id}` }
+            ],
+            [
+              { text: '✅ Selesai & Submit', callback_data: `save:${bookmark_id}` },
+              { text: '❌ Hapus', callback_data: `delete:${bookmark_id}` }
+            ]
+          ]
+        }
+      });
     }
 
     return NextResponse.json({ ok: true, status: 'done', bookmark_id });

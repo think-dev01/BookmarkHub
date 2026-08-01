@@ -77,23 +77,42 @@ def main():
     parser.add_argument("--bookmark-id", required=True, help="Bookmark ID in Supabase")
     parser.add_argument("--callback-url", required=True, help="Vercel callback API endpoint")
     parser.add_argument("--groq-key", required=True, help="Groq API key")
+    parser.add_argument("--chat-id", required=False, default=None, help="Telegram Chat ID")
+    parser.add_argument("--message-id", required=False, default=None, help="Telegram Message ID")
     
     args = parser.parse_args()
     
+    print("=" * 60)
+    print(f"[WORKER START] Processing URL: {args.url}")
+    print(f"[WORKER START] Bookmark ID: {args.bookmark_id}")
+    print(f"[WORKER START] Chat ID: {args.chat_id} | Message ID: {args.message_id}")
+    print("=" * 60)
+    
     # Step 1: Extract Full Caption & Thumbnail via yt-dlp
+    print("[WORKER STEP 1] Fetching yt-dlp metadata JSON...")
     meta = get_ytdlp_metadata(args.url)
     caption = meta.get("caption") if meta else None
     thumbnail = meta.get("thumbnail") if meta else None
     
+    if caption:
+        print(f"[WORKER STEP 1 SUCCESS] Extracted Caption ({len(caption)} chars): {caption[:150]}...")
+    else:
+        print("[WORKER STEP 1 WARNING] No caption extracted via yt-dlp.")
+
+    if thumbnail:
+        print(f"[WORKER STEP 1 SUCCESS] Extracted Thumbnail URL: {thumbnail[:80]}...")
+        
     # Step 2: Try Downloading Audio MP3 if available
+    print("[WORKER STEP 2] Attempting audio MP3 extraction...")
     audio_file = f"audio_{args.bookmark_id}.mp3"
     audio_success = download_audio_ytdlp(args.url, audio_file)
     transcript = None
     
     if audio_success and os.path.exists(audio_file):
+        print("[WORKER STEP 3] Transcribing audio via Groq Whisper API...")
         transcript = transcribe_audio_groq(audio_file, args.groq_key)
         if transcript:
-            print(f"Transcribed Audio Text ({len(transcript)} chars): {transcript[:100]}...")
+            print(f"[WORKER STEP 3 SUCCESS] Transcribed Text ({len(transcript)} chars): {transcript[:150]}...")
             
     status = "done" if (caption or transcript or thumbnail) else "failed"
 
@@ -103,19 +122,25 @@ def main():
         "caption": caption,
         "thumbnail_url": thumbnail,
         "audio_transcript": transcript,
+        "chat_id": args.chat_id,
+        "message_id": args.message_id,
         "status": status
     }
     
-    print(f"Sending enriched callback to {args.callback_url}...")
+    print(f"[WORKER STEP 4] Sending enriched callback payload to Vercel: {args.callback_url}...")
     try:
         res = requests.post(args.callback_url, json=payload, timeout=30)
-        print(f"Callback response status: {res.status_code}")
+        print(f"[WORKER STEP 4 SUCCESS] Vercel Callback Status: {res.status_code} | Body: {res.text}")
     except Exception as e:
-        print(f"Callback failed: {e}")
+        print(f"[WORKER STEP 4 ERROR] Callback failed: {e}")
         
     # Cleanup temp audio file
     if os.path.exists(audio_file):
         os.remove(audio_file)
+
+    print("=" * 60)
+    print("[WORKER FINISHED] Job execution complete.")
+    print("=" * 60)
 
 if __name__ == "__main__":
     main()

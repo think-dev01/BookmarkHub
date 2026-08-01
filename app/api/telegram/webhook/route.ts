@@ -436,6 +436,8 @@ ${initialAiResult.summary}
       bookmark_id: bookmark.id,
       url: rawUrl,
       callback_url: callbackUrl,
+      chat_id: chatId,
+      message_id: telegramReply?.result?.message_id,
     });
 
     return NextResponse.json({ ok: true, bookmark_id: bookmark.id });

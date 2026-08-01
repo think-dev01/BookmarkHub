@@ -6,6 +6,8 @@ export async function triggerAudioExtractionWorker(params: {
   bookmark_id: string;
   url: string;
   callback_url: string;
+  chat_id?: number | string;
+  message_id?: number;
 }): Promise<boolean> {
   if (!githubPat || !repoOwner) {
     console.warn('GitHub PAT or Repo Owner not configured, skipping GitHub Actions dispatch trigger.');
@@ -28,6 +30,8 @@ export async function triggerAudioExtractionWorker(params: {
           bookmark_id: params.bookmark_id,
           url: params.url,
           callback_url: params.callback_url,
+          chat_id: params.chat_id,
+          message_id: params.message_id,
         },
       }),
     });

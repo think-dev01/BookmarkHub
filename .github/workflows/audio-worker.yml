@@ -36,4 +36,6 @@ jobs:
             --url "${{ github.event.client_payload.url }}" \
             --bookmark-id "${{ github.event.client_payload.bookmark_id }}" \
             --callback-url "${{ github.event.client_payload.callback_url }}" \
+            --chat-id "${{ github.event.client_payload.chat_id }}" \
+            --message-id "${{ github.event.client_payload.message_id }}" \
             --groq-key "${{ secrets.GROQ_API_KEY }}"
